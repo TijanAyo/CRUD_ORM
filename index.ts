@@ -1,6 +1,5 @@
 import express, {Request, Response} from "express"
 import {PrismaClient} from '@prisma/client'
-import { Resolver } from "dns"
 
 const app = express()
 const PORT = 2030
@@ -10,11 +9,15 @@ const prisma = new PrismaClient()
 app.use(express.json())
 
 
-app.get('/status', (req: Request, res: Response)=>{
-    return res.status(200).json('ORM health care working okay')
+app.get('/status', (_req: Request, res: Response)=>{
+    const { statusCode } = res;
+    if (statusCode != 200){
+        return res.status(400).json({msg: "Something went wrong..."})
+    }
+    return res.status(200).json({msg: 'Working okay...'})
 });
 
-// create user
+// Create User
 app.post('/', async (req: Request, res: Response) => {
     const {username , password } = req.body
 
@@ -39,30 +42,39 @@ app.post('/', async (req: Request, res: Response) => {
     })
 });
 
-// get all user
+// Get All User's
 app.get('/', async (_req: Request, res: Response) => {
-    const findUser = await prisma.user.findMany()
+    const user = await prisma.user.findMany()
 
-    if (!findUser){
-        return res.status(400).json({
-            msg: 'Somthing went wrong'
-        })
+    if (user){
+        return res.status(200).json({user});
     }
-    else if (findUser == null){
-        return res.status(200).json({
-            msg: 'No users at the moment'
-        })  
-    }
-    return res.status(200).json({
-        findUser
+    return res.status(400).json({
+        msg: 'No user at this time...'
     });
+    
 });
 
-// update user
+// Get Single User
+app.get('/:id',async (req: Request, res: Response) => {
+    const id = req.params.id
+
+    const user = await prisma.user.findUnique({
+        where: {
+            id: Number(id)
+        }
+    });
+    if(user){
+        return res.status(200).json(user)
+    }
+    return res.status(400).send(`No user with ID: ${id}`)
+});
+
+// Update User
 app.put('/update-profile', async (req: Request, res: Response) => {
     const {id, username} = req.body
 
-    const updateUser = await prisma.user.update({
+    const user = await prisma.user.update({
         where: {
             id: id
         },
@@ -70,35 +82,28 @@ app.put('/update-profile', async (req: Request, res: Response) => {
             username: username
         }
     });
-    if (!updateUser){
-        return res.status(400).json({
-            msg: 'Error... something went wrong'
-        })
+    if (user){
+        return res.status(200).send(user)
     }
-    return res.status(201).json({
-        success: {
-            id, 
-            username
-        }
-    });
+    return res.status(400).send('Somthing did not go right...')
 });
 
 
-// delete user
+// Delete User
 app.delete('/delete/:id', async (req: Request, res: Response) => {
     const id = req.params.id
-    const deleteUser = await prisma.user.delete({
+    const user = await prisma.user.delete({
         where: {
             id : Number(id)
         }
     });
-    if (!deleteUser){
-        return res.status(400).json({
-            msg: 'Error... something went wrong'
-        })
+    if (user){
+        return res.status(200).json({
+            msg: `user ${id} was deleted successfully`
+        });
     }
-    return res.status(200).json({
-        msg: `user ${id} was deleted successfully`
+    return res.status(400).json({
+        msg: 'Error... something went wrong'
     })
 })
 
